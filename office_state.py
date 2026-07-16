@@ -1,27 +1,33 @@
 """
 office_state.py
 
-Single shared state file that every desk/agent script reads from and writes to.
-This is intentionally a plain JSON file, not a database — the whole point of
-this hub is that one human can open state.json, or the dashboard, and see the
-truth about what is and isn't actually running.
+Same job as before — every desk/agent script reads and writes through this
+file — but the actual data now lives in Supabase (a free hosted database)
+instead of a local file, so it survives restarts and redeploys.
 
-Any future script (printify_desk.py, ebay_flip_finder.py, etc.) should only
-need two calls to hook into the hub:
-
-    from office_state import set_output, get_room
-
-    get_room("printify_desk")["status"]   # check before doing anything that publishes
-    set_output("printify_desk", "Uploaded 3 designs, awaiting review", status="awaiting_review")
+Needs two environment variables set wherever this runs (set them in Render's
+"Environment" tab, never commit them into the code):
+    SUPABASE_URL
+    SUPABASE_KEY   (the service_role key)
 """
 
-import json
 import os
 import threading
 from datetime import datetime, timezone
+from supabase import create_client, Client
 
-STATE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "state.json")
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    raise RuntimeError(
+        "SUPABASE_URL and SUPABASE_KEY must be set as environment variables "
+        "(set these in Render's Environment tab, not in this file)."
+    )
+
+_client: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 _lock = threading.Lock()
+ROW_ID = 1
 
 VALID_STATUSES = {
     "not_started",
@@ -34,21 +40,84 @@ VALID_STATUSES = {
     "blocked",
 }
 
+# Used only the very first time the app runs, to seed an empty database.
+DEFAULT_STATE = {
+    "finance": {"total_earned": 0.0, "total_spent": 0.0, "currency": "GBP"},
+    "agents": {
+        "idea_room": {
+            "label": "Idea Room", "desk": "YouTube",
+            "job": "Generates original video concepts",
+            "status": "built_not_wired", "last_output": None,
+            "notes": "Code exists (idea_room.py). Not yet reporting into this hub.",
+        },
+        "writers_room": {
+            "label": "Writers' Room", "desk": "YouTube",
+            "job": "Turns an idea into a full beat-by-beat script",
+            "status": "built_not_wired", "last_output": None,
+            "notes": "Code exists (writers_room.py). Not yet reporting into this hub.",
+        },
+        "voice_booth": {
+            "label": "Voice Booth", "desk": "YouTube",
+            "job": "Text-to-speech narration",
+            "status": "not_started", "last_output": None,
+            "notes": "Not built yet. Free TTS quality was flagged as a retention risk.",
+        },
+        "art_department": {
+            "label": "Art Department", "desk": "YouTube",
+            "job": "Illustrated panels for pan/zoom animation",
+            "status": "not_started", "last_output": None,
+            "notes": "Not built yet.",
+        },
+        "ebay_flip_finder": {
+            "label": "eBay Flip Finder", "desk": "Reselling",
+            "job": "Flags active-listing price gaps (Browse API, free tier)",
+            "status": "not_started", "last_output": None,
+            "notes": "v1 planned. Sold-price data needs a paid eBay Store + Terapeak later.",
+        },
+        "store_designer": {
+            "label": "Store Designer", "desk": "Merch",
+            "job": "AI-generates product names, descriptions and design concepts",
+            "status": "not_started", "last_output": None,
+            "notes": "Not built yet. Feeds straight into Printify Desk once running.",
+        },
+        "printify_desk": {
+            "label": "Printify Desk", "desk": "Merch",
+            "job": "Uploads designs as products via the Printify API",
+            "status": "not_started", "last_output": None,
+            "notes": "Not built yet. Printify itself is free; per-item cost applies on sale.",
+        },
+        "storefront": {
+            "label": "Storefront", "desk": "Merch",
+            "job": "Printify's free built-in Pop-Up Store (no Shopify needed)",
+            "status": "not_started", "last_output": None,
+            "notes": "Free. Revisit Shopify only once real sales justify ~£20+/mo.",
+        },
+        "tiktok_ads": {
+            "label": "TikTok Ads", "desk": "Marketing",
+            "job": "Posts/ad creative for the storefront",
+            "status": "not_started", "last_output": None,
+            "notes": "Blocked on TikTok developer app approval + business verification, not just code.",
+        },
+    },
+    "log": [{"ts": "hub created", "text": "Mission Control initialised. All desks start honest: nothing runs unattended yet."}],
+}
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
 
 def _load() -> dict:
-    with open(STATE_PATH, "r") as f:
-        return json.load(f)
+    res = _client.table("hub_state").select("data").eq("id", ROW_ID).execute()
+    if res.data:
+        return res.data[0]["data"]
+    # First ever run: seed the database with the default board.
+    _client.table("hub_state").insert({"id": ROW_ID, "data": DEFAULT_STATE}).execute()
+    return DEFAULT_STATE
 
 
 def _save(state: dict) -> None:
-    tmp_path = STATE_PATH + ".tmp"
-    with open(tmp_path, "w") as f:
-        json.dump(state, f, indent=2)
-    os.replace(tmp_path, STATE_PATH)
+    _client.table("hub_state").upsert({"id": ROW_ID, "data": state}).execute()
 
 
 def get_state() -> dict:
@@ -56,7 +125,7 @@ def get_state() -> dict:
         return _load()
 
 
-def get_room(agent_id: str) -> dict | None:
+def get_room(agent_id: str):
     state = get_state()
     return state["agents"].get(agent_id)
 
@@ -65,16 +134,15 @@ def log_event(text: str) -> None:
     with _lock:
         state = _load()
         state["log"].append({"ts": _now(), "text": text})
-        state["log"] = state["log"][-50:]  # keep it short, this is a log not an archive
+        state["log"] = state["log"][-50:]
         _save(state)
 
 
-def set_output(agent_id: str, output: str, status: str | None = None) -> None:
-    """Any pipeline script calls this after doing work, so the hub reflects reality."""
+def set_output(agent_id: str, output: str, status: str = None) -> None:
     with _lock:
         state = _load()
         if agent_id not in state["agents"]:
-            raise KeyError(f"Unknown agent '{agent_id}' — add it to state.json first.")
+            raise KeyError(f"Unknown agent '{agent_id}' — add it to DEFAULT_STATE first.")
         state["agents"][agent_id]["last_output"] = output
         if status:
             if status not in VALID_STATUSES:
@@ -91,7 +159,7 @@ def set_status(agent_id: str, status: str) -> None:
     with _lock:
         state = _load()
         if agent_id not in state["agents"]:
-            raise KeyError(f"Unknown agent '{agent_id}' — add it to state.json first.")
+            raise KeyError(f"Unknown agent '{agent_id}' — add it to DEFAULT_STATE first.")
         state["agents"][agent_id]["status"] = status
         _save(state)
 
@@ -100,17 +168,12 @@ def update_notes(agent_id: str, notes: str) -> None:
     with _lock:
         state = _load()
         if agent_id not in state["agents"]:
-            raise KeyError(f"Unknown agent '{agent_id}' — add it to state.json first.")
+            raise KeyError(f"Unknown agent '{agent_id}' — add it to DEFAULT_STATE first.")
         state["agents"][agent_id]["notes"] = notes
         _save(state)
 
 
 def update_finance(earned_delta: float = 0.0, spent_delta: float = 0.0, note: str = "") -> None:
-    """
-    Money in/out is logged manually right now, on purpose. Nothing in this
-    project has a live payment webhook connected, so a manual entry point is
-    the honest version rather than a fake live ticker.
-    """
     with _lock:
         state = _load()
         state["finance"]["total_earned"] += earned_delta
