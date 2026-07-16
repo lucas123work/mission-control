@@ -1,4 +1,4 @@
-python"""
+"""
 printify_desk.py
 
 First job: prove the connection to Printify actually works, and find your
@@ -19,7 +19,6 @@ def _headers():
 
 
 def test_connection() -> str:
-    """Fetches your shop list. Returns a human-readable result string."""
     resp = requests.get(f"{API_BASE}/shops.json", headers=_headers(), timeout=15)
     if resp.status_code != 200:
         return f"Connection failed ({resp.status_code}): {resp.text[:200]}"
