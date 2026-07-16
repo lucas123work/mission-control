@@ -1,15 +1,4 @@
-"""
-office_state.py
 
-Same job as before — every desk/agent script reads and writes through this
-file — but the actual data now lives in Supabase (a free hosted database)
-instead of a local file, so it survives restarts and redeploys.
-
-Needs two environment variables set wherever this runs (set them in Render's
-"Environment" tab, never commit them into the code):
-    SUPABASE_URL
-    SUPABASE_KEY   (the service_role key)
-"""
 
 import os
 import threading
