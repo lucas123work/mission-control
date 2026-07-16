@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mission Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700;800&family=Rajdhani:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="bg-glow"></div>
+
+<header class="topbar">
+  <div class="callsign">
+    <span class="callsign-ring"><span class="callsign-dot"></span></span>
+    <div class="callsign-text">
+      <h1>MISSION CONTROL</h1>
+      <span class="callsign-sub">solo op &middot; 8 desks &middot; live board</span>
+    </div>
+  </div>
+  <div class="topbar-flags">
+    {% if blocked %}<span class="flag flag-rust"><i></i>{{ blocked }} blocked</span>{% endif %}
+    {% if needs_review %}<span class="flag flag-amber"><i></i>{{ needs_review }} awaiting review</span>{% endif %}
+    {% if not blocked and not needs_review %}<span class="flag flag-teal"><i></i>all clear</span>{% endif %}
+  </div>
+</header>
+
+<section class="ledger-strip">
+  <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+  <div class="ledger-figure">
+    <span class="ledger-label">Total Earned</span>
+    <span class="ledger-value teal">£{{ "%.2f"|format(finance.total_earned) }}</span>
+  </div>
+  <div class="ledger-divider"></div>
+  <div class="ledger-figure">
+    <span class="ledger-label">Total Spent</span>
+    <span class="ledger-value rust">£{{ "%.2f"|format(finance.total_spent) }}</span>
+  </div>
+  <div class="ledger-divider"></div>
+  <div class="ledger-figure">
+    <span class="ledger-label">Net Position</span>
+    <span class="ledger-value {{ 'teal' if net >= 0 else 'rust' }}">£{{ "%.2f"|format(net) }}</span>
+  </div>
+
+  <form class="ledger-form" action="{{ url_for('finance') }}" method="post">
+    <input type="number" step="0.01" name="earned" placeholder="+ earned">
+    <input type="number" step="0.01" name="spent" placeholder="+ spent">
+    <input type="text" name="note" placeholder="note e.g. Etsy sale">
+    <button type="submit">Log entry</button>
+  </form>
+</section>
+<p class="ledger-caveat"><i></i>Nothing here is connected to a live payment feed — figures only move when you log them. That's on purpose.</p>
+
+<section class="desks">
+  {% for a in agents %}
+  <article class="desk-card tone-{{ a.tone }}">
+    <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <div class="desk-head">
+      <span class="status-dot dot-{{ a.tone }}"></span>
+      <h2>{{ a.label }}</h2>
+      <span class="desk-tag">{{ a.desk }}</span>
+    </div>
+    <p class="desk-job">{{ a.job }}</p>
+    <p class="desk-status">{{ a.status_label }}</p>
+
+    <div class="desk-output">
+      <span class="desk-output-label">Last output</span>
+      <p>{{ a.last_output or "—" }}</p>
+    </div>
+
+    <form class="desk-notes" action="{{ url_for('note', agent_id=a.id) }}" method="post">
+      <textarea name="notes" rows="2">{{ a.notes }}</textarea>
+      <button type="submit">Save note</button>
+    </form>
+
+    {% if a.status == "awaiting_review" %}
+    <form action="{{ url_for('approve', agent_id=a.id) }}" method="post">
+      <button class="approve-btn" type="submit">Approve to publish</button>
+    </form>
+    {% endif %}
+  </article>
+  {% endfor %}
+</section>
+
+<section class="log-console">
+  <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+  <div class="log-console-head"><span class="live-pulse"></span>Activity Log</div>
+  <div class="log-lines">
+    {% for entry in log %}
+    <div class="log-line"><span class="log-ts">{{ entry.ts }}</span>{{ entry.text }}</div>
+    {% endfor %}
+  </div>
+</section>
+
+</body>
+</html>

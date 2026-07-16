@@ -1,0 +1,79 @@
+{
+  "finance": {
+    "total_earned": 0.0,
+    "total_spent": 0.0,
+    "currency": "GBP"
+  },
+  "agents": {
+    "idea_room": {
+      "label": "Idea Room",
+      "desk": "YouTube",
+      "job": "Generates original video concepts",
+      "status": "built_not_wired",
+      "last_output": null,
+      "notes": "Code exists (idea_room.py). Not yet reporting into this hub."
+    },
+    "writers_room": {
+      "label": "Writers' Room",
+      "desk": "YouTube",
+      "job": "Turns an idea into a full beat-by-beat script",
+      "status": "built_not_wired",
+      "last_output": null,
+      "notes": "Code exists (writers_room.py). Not yet reporting into this hub."
+    },
+    "voice_booth": {
+      "label": "Voice Booth",
+      "desk": "YouTube",
+      "job": "Text-to-speech narration",
+      "status": "not_started",
+      "last_output": null,
+      "notes": "Not built yet. Free TTS quality was flagged as a retention risk."
+    },
+    "art_department": {
+      "label": "Art Department",
+      "desk": "YouTube",
+      "job": "Illustrated panels for pan/zoom animation",
+      "status": "not_started",
+      "last_output": null,
+      "notes": "Not built yet."
+    },
+    "ebay_flip_finder": {
+      "label": "eBay Flip Finder",
+      "desk": "Reselling",
+      "job": "Flags active-listing price gaps (Browse API, free tier)",
+      "status": "not_started",
+      "last_output": null,
+      "notes": "v1 planned. Sold-price data needs a paid eBay Store + Terapeak later."
+    },
+    "printify_desk": {
+      "label": "Printify Desk",
+      "desk": "Merch",
+      "job": "Generates designs, uploads as products",
+      "status": "not_started",
+      "last_output": null,
+      "notes": "Not built yet. Printify itself is free; per-item cost applies on sale."
+    },
+    "shopify_sync": {
+      "label": "Shopify Sync",
+      "desk": "Merch",
+      "job": "Keeps the storefront in sync with Printify",
+      "status": "not_started",
+      "last_output": null,
+      "notes": "Not built yet. Needs a paid Shopify plan to actually launch."
+    },
+    "tiktok_ads": {
+      "label": "TikTok Ads",
+      "desk": "Marketing",
+      "job": "Posts/ad creative for the merch store",
+      "status": "not_started",
+      "last_output": null,
+      "notes": "Blocked on TikTok developer app approval + business verification, not just code."
+    }
+  },
+  "log": [
+    {
+      "ts": "hub created",
+      "text": "Mission Control initialised. All desks start honest: nothing runs unattended yet."
+    }
+  ]
+}
