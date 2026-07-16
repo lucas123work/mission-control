@@ -51,7 +51,16 @@ def note(agent_id):
     store.update_notes(agent_id, text)
     return redirect(url_for("index"))
 
-
+@app.route("/run/printify_desk", methods=["POST"])
+def run_printify_desk():
+    import printify_desk
+    try:
+        result = printify_desk.test_connection()
+        store.set_output("printify_desk", result, status="awaiting_orders")
+    except Exception as e:
+        store.set_output("printify_desk", f"Error: {e}", status="blocked")
+    return redirect(url_for("index"))
+    
 @app.route("/finance", methods=["POST"])
 def finance():
     def to_float(val):
