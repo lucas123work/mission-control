@@ -75,7 +75,12 @@
       <textarea name="notes" rows="2">{{ a.notes }}</textarea>
       <button type="submit">Save note</button>
     </form>
-
+    
+ {% if a.id == "printify_desk" %}
+    <form action="{{ url_for('run_printify_desk') }}" method="post">
+      <button class="approve-btn" type="submit">Test Printify connection</button>
+    </form>
+    {% endif %}
     {% if a.status == "awaiting_review" %}
     <form action="{{ url_for('approve', agent_id=a.id) }}" method="post">
       <button class="approve-btn" type="submit">Approve to publish</button>
