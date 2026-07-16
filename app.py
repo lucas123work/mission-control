@@ -53,6 +53,16 @@ def note(agent_id):
 
 @app.route("/run/printify_desk", methods=["POST"])
 def run_printify_desk():
+    python@app.route("/run/printify_lookup", methods=["POST"])
+def run_printify_lookup():
+    import printify_desk
+    try:
+        result = printify_desk.find_tee_blueprint()
+        store.set_output("printify_desk", result)
+    except Exception as e:
+        store.set_output("printify_desk", f"Error: {e}", status="blocked")
+    return redirect(url_for("index"))
+
     import printify_desk
     try:
         result = printify_desk.test_connection()
