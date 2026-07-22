@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, Response
 import office_state as store
 
 app = Flask(__name__)
@@ -132,11 +132,21 @@ def run_store_designer():
         summary = (f"PROPOSED: \"{proposal['title']}\"\n"
                    f"Design text: {proposal['tagline']}\n"
                    f"{proposal['description']}\n\n"
-                   f"Review below, then Approve or Discard.")
+                   f"Preview below. Approve or Discard.")
         store.set_output("store_designer", summary, status="awaiting_review")
     except Exception as e:
         store.set_output("store_designer", f"Error: {e}", status="blocked")
     return redirect(url_for("index"))
+
+
+@app.route("/pending_product_image")
+def pending_product_image():
+    import printify_desk
+    proposal = store.get_pending_product()
+    if not proposal:
+        return Response(status=404)
+    png_bytes = printify_desk.make_design_image(proposal["tagline"])
+    return Response(png_bytes, mimetype="image/png")
 
 
 @app.route("/approve_product", methods=["POST"])
