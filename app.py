@@ -34,6 +34,7 @@ def index():
         net=net,
         needs_review=needs_review,
         blocked=blocked,
+        pending_product=state.get("pending_product"),
         log=list(reversed(state["log"][-20:])),
     )
 
@@ -119,6 +120,45 @@ def run_printify_create_test():
         store.set_output("printify_desk", result, status="awaiting_review")
     except Exception as e:
         store.set_output("printify_desk", f"Error: {e}", status="blocked")
+    return redirect(url_for("index"))
+
+
+@app.route("/run/store_designer", methods=["POST"])
+def run_store_designer():
+    import store_designer
+    try:
+        proposal = store_designer.propose_product()
+        store.set_pending_product(proposal)
+        summary = (f"PROPOSED: \"{proposal['title']}\"\n"
+                   f"Design text: {proposal['tagline']}\n"
+                   f"{proposal['description']}\n\n"
+                   f"Review below, then Approve or Discard.")
+        store.set_output("store_designer", summary, status="awaiting_review")
+    except Exception as e:
+        store.set_output("store_designer", f"Error: {e}", status="blocked")
+    return redirect(url_for("index"))
+
+
+@app.route("/approve_product", methods=["POST"])
+def approve_product():
+    import printify_desk
+    proposal = store.get_pending_product()
+    if not proposal:
+        return redirect(url_for("index"))
+    try:
+        result = printify_desk.create_product_from_proposal(proposal)
+        store.set_output("printify_desk", result, status="awaiting_review")
+        store.set_output("store_designer", "Last proposal approved and sent to Printify Desk.", status="not_started")
+        store.clear_pending_product()
+    except Exception as e:
+        store.set_output("store_designer", f"Error sending to Printify: {e}", status="blocked")
+    return redirect(url_for("index"))
+
+
+@app.route("/discard_product", methods=["POST"])
+def discard_product():
+    store.clear_pending_product()
+    store.set_output("store_designer", "Proposal discarded.", status="not_started")
     return redirect(url_for("index"))
 
 
