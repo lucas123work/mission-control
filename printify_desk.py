@@ -1,8 +1,8 @@
 """
 printify_desk.py
 
-First job: prove the connection to Printify actually works, and find your
-shop automatically so you never have to hunt for a numeric Shop ID.
+Handles all communication with the Printify API: confirming the connection
+works, and looking up product blueprints to use later.
 """
 
 import os
@@ -32,8 +32,8 @@ def test_connection() -> str:
         lines.append(f"  - {shop['title']} (id: {shop['id']}, platform: {shop['sales_channel']})")
     return "\n".join(lines)
 
+
 def find_tee_blueprint() -> str:
-    """One-time lookup: finds a basic t-shirt blueprint and a print provider for it."""
     resp = requests.get(f"{API_BASE}/catalog/blueprints.json", headers=_headers(), timeout=20)
     if resp.status_code != 200:
         return f"Blueprint lookup failed ({resp.status_code}): {resp.text[:200]}"
