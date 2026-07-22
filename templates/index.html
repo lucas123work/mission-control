@@ -83,6 +83,9 @@
     <form action="{{ url_for('run_printify_lookup') }}" method="post">
       <button class="approve-btn" type="submit">Find tee blueprint</button>
     </form>
+    <form action="{{ url_for('run_printify_providers') }}" method="post">
+      <button class="approve-btn" type="submit">Find print provider</button>
+    </form>
     {% endif %}
 
     {% if a.status == "awaiting_review" %}
