@@ -2,14 +2,15 @@
 printify_desk.py
 
 Handles all communication with the Printify API: confirming the connection
-works, and looking up product blueprints/providers to use later.
+works, and looking up blueprints/providers/variants to use later.
 """
 
 import os
 import requests
 
 API_BASE = "https://api.printify.com/v1"
-TEE_BLUEPRINT_ID = 6  # Unisex Heavy Cotton Tee — confirmed working
+TEE_BLUEPRINT_ID = 6      # Unisex Heavy Cotton Tee — confirmed working
+TEE_PROVIDER_ID = 410     # Printful — confirmed working
 
 
 def _headers():
@@ -65,4 +66,24 @@ def find_print_provider() -> str:
     lines = ["Available print providers:"]
     for p in providers[:5]:
         lines.append(f"  - {p['title']} (id: {p['id']})")
+    return "\n".join(lines)
+
+
+def find_variants() -> str:
+    resp = requests.get(
+        f"{API_BASE}/catalog/blueprints/{TEE_BLUEPRINT_ID}/print_providers/{TEE_PROVIDER_ID}/variants.json",
+        headers=_headers(), timeout=20,
+    )
+    if resp.status_code != 200:
+        return f"Variant lookup failed ({resp.status_code}): {resp.text[:200]}"
+
+    data = resp.json()
+    variants = data.get("variants", [])
+    if not variants:
+        return "No variants found."
+
+    # Just show a readable sample — there are usually 30-100+ of these (size x color).
+    lines = [f"Found {len(variants)} variants. First 8:"]
+    for v in variants[:8]:
+        lines.append(f"  - {v['title']} (variant_id: {v['id']})")
     return "\n".join(lines)
