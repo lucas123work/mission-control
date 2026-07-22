@@ -111,6 +111,12 @@
     <form action="{{ url_for('run_printify_create_test') }}" method="post">
       <button class="approve-btn" type="submit">Create test product</button>
     </form>
+     <form action="{{ url_for('run_printify_black_variants') }}" method="post">
+      <button class="approve-btn" type="submit">Find black variants</button>
+    </form>
+    <form action="{{ url_for('run_printify_white_variants') }}" method="post">
+      <button class="approve-btn" type="submit">Find white variants</button>
+    </form>
     {% endif %}
 
     {% if a.status == "awaiting_review" and a.id != "store_designer" %}
