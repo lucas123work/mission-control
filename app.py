@@ -89,5 +89,16 @@ def run_printify_lookup():
     return redirect(url_for("index"))
 
 
+@app.route("/run/printify_providers", methods=["POST"])
+def run_printify_providers():
+    import printify_desk
+    try:
+        result = printify_desk.find_print_provider()
+        store.set_output("printify_desk", result)
+    except Exception as e:
+        store.set_output("printify_desk", f"Error: {e}", status="blocked")
+    return redirect(url_for("index"))
+
+
 if __name__ == "__main__":
     app.run(debug=True, port=5050)
