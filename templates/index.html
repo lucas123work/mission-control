@@ -76,12 +76,23 @@
       <button type="submit">Save note</button>
     </form>
 
+    {% if a.id == "store_designer" %}
+    <form action="{{ url_for('run_store_designer') }}" method="post">
+      <button class="approve-btn" type="submit">Generate product idea</button>
+    </form>
+    {% if pending_product %}
+    <form action="{{ url_for('approve_product') }}" method="post">
+      <button class="approve-btn" type="submit">Approve &amp; create on Printify</button>
+    </form>
+    <form action="{{ url_for('discard_product') }}" method="post">
+      <button type="submit">Discard proposal</button>
+    </form>
+    {% endif %}
+    {% endif %}
+
     {% if a.id == "printify_desk" %}
     <form action="{{ url_for('run_printify_desk') }}" method="post">
       <button class="approve-btn" type="submit">Test Printify connection</button>
-    </form>
-    <form action="{{ url_for('run_printify_create_test') }}" method="post">
-      <button class="approve-btn" type="submit">Create test product</button>
     </form>
     <form action="{{ url_for('run_printify_lookup') }}" method="post">
       <button class="approve-btn" type="submit">Find tee blueprint</button>
@@ -92,9 +103,12 @@
     <form action="{{ url_for('run_printify_variants') }}" method="post">
       <button class="approve-btn" type="submit">Find variants</button>
     </form>
+    <form action="{{ url_for('run_printify_create_test') }}" method="post">
+      <button class="approve-btn" type="submit">Create test product</button>
+    </form>
     {% endif %}
 
-    {% if a.status == "awaiting_review" %}
+    {% if a.status == "awaiting_review" and a.id not in ["store_designer"] %}
     <form action="{{ url_for('approve', agent_id=a.id) }}" method="post">
       <button class="approve-btn" type="submit">Approve to publish</button>
     </form>
