@@ -83,7 +83,10 @@ def find_variants() -> str:
     return "\n".join(lines)
 
 
-def _make_design_image(text: str) -> bytes:
+def make_design_image(text: str) -> bytes:
+    """Public: renders the design text as a PNG. Used both for previewing
+    on the dashboard and for the actual Printify upload, so what you see
+    in the preview is exactly what gets used."""
     img = Image.new("RGBA", (1500, 1500), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     wrapped = textwrap.fill(text, 16)
@@ -101,7 +104,7 @@ def _make_design_image(text: str) -> bytes:
 
 
 def _upload_and_create(title: str, description: str, tagline: str) -> str:
-    image_bytes = _make_design_image(tagline)
+    image_bytes = make_design_image(tagline)
     b64 = base64.b64encode(image_bytes).decode("utf-8")
 
     upload_resp = requests.post(
