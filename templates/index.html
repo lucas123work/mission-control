@@ -18,7 +18,7 @@
     <span class="callsign-ring"><span class="callsign-dot"></span></span>
     <div class="callsign-text">
       <h1>MISSION CONTROL</h1>
-      <span class="callsign-sub">solo op &middot; 8 desks &middot; live board</span>
+      <span class="callsign-sub">solo op &middot; 9 desks &middot; live board</span>
     </div>
   </div>
   <div class="topbar-flags">
@@ -68,21 +68,23 @@
 
     <div class="desk-output">
       <span class="desk-output-label">Last output</span>
-      <p>{{ a.last_output or "—" }}</p>
+      <p style="white-space: pre-line;">{{ a.last_output or "—" }}</p>
     </div>
 
     <form class="desk-notes" action="{{ url_for('note', agent_id=a.id) }}" method="post">
       <textarea name="notes" rows="2">{{ a.notes }}</textarea>
       <button type="submit">Save note</button>
     </form>
-    
- {% if a.id == "printify_desk" %}
+
+    {% if a.id == "printify_desk" %}
     <form action="{{ url_for('run_printify_desk') }}" method="post">
-      <button class="approve-btn" type="submit">Test Printify connection</button> <form action="{{ url_for('run_printify_lookup') }}" method="post">
+      <button class="approve-btn" type="submit">Test Printify connection</button>
+    </form>
+    <form action="{{ url_for('run_printify_lookup') }}" method="post">
       <button class="approve-btn" type="submit">Find tee blueprint</button>
     </form>
-    </form>
     {% endif %}
+
     {% if a.status == "awaiting_review" %}
     <form action="{{ url_for('approve', agent_id=a.id) }}" method="post">
       <button class="approve-btn" type="submit">Approve to publish</button>
