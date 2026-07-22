@@ -7,24 +7,22 @@ Handles all communication with the Printify API.
 import os
 import io
 import base64
+import textwrap
 import requests
 from PIL import Image, ImageDraw, ImageFont
 
 API_BASE = "https://api.printify.com/v1"
-SHOP_ID = 28263870        # Tee Store Infinite — confirmed
-TEE_BLUEPRINT_ID = 6      # Unisex Heavy Cotton Tee — confirmed
-TEE_PROVIDER_ID = 410     # Printful — confirmed
+SHOP_ID = 28263870
+TEE_BLUEPRINT_ID = 6
+TEE_PROVIDER_ID = 410
 TEST_VARIANT_IDS = [11848, 11849, 11850, 11851, 11852, 11853]  # Ash, sizes S-3XL
 
 
-def _headers(json_body=True):
+def _headers():
     token = os.environ.get("PRINTIFY_API_TOKEN")
     if not token:
         raise RuntimeError("PRINTIFY_API_TOKEN is not set in the environment.")
-    h = {"Authorization": f"Bearer {token}"}
-    if json_body:
-        h["Content-Type"] = "application/json"
-    return h
+    return {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
 
 def test_connection() -> str:
@@ -55,10 +53,8 @@ def find_tee_blueprint() -> str:
 
 
 def find_print_provider() -> str:
-    resp = requests.get(
-        f"{API_BASE}/catalog/blueprints/{TEE_BLUEPRINT_ID}/print_providers.json",
-        headers=_headers(), timeout=20,
-    )
+    resp = requests.get(f"{API_BASE}/catalog/blueprints/{TEE_BLUEPRINT_ID}/print_providers.json",
+                         headers=_headers(), timeout=20)
     if resp.status_code != 200:
         return f"Provider lookup failed ({resp.status_code}): {resp.text[:200]}"
     providers = resp.json()
@@ -87,73 +83,63 @@ def find_variants() -> str:
     return "\n".join(lines)
 
 
-def _make_placeholder_design() -> bytes:
-    """Generates a simple text-based PNG so we have something real to upload."""
-    img = Image.new("RGBA", (1000, 1000), (0, 0, 0, 0))
+def _make_design_image(text: str) -> bytes:
+    img = Image.new("RGBA", (1500, 1500), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
-    text = "SAMPLE\nDESIGN"
-    font = ImageFont.load_default()
-    bbox = draw.multiline_textbbox((0, 0), text, font=font, align="center")
+    wrapped = textwrap.fill(text, 16)
+    try:
+        font = ImageFont.load_default(size=130)
+    except TypeError:
+        font = ImageFont.load_default()
+    bbox = draw.multiline_textbbox((0, 0), wrapped, font=font, align="center", spacing=20)
     w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
-    draw.multiline_text(
-        ((1000 - w) / 2, (1000 - h) / 2), text,
-        fill=(20, 20, 20, 255), font=font, align="center",
-    )
+    draw.multiline_text(((1500 - w) / 2, (1500 - h) / 2), wrapped, fill=(15, 15, 15, 255),
+                         font=font, align="center", spacing=20)
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return buf.getvalue()
 
 
-def create_test_product() -> str:
-    """
-    Uploads a placeholder design and creates ONE draft product on Printify.
-    Drafts are never published automatically — this only proves the pipeline
-    works end-to-end. Safe to run, safe to delete afterward in Printify.
-    """
-    image_bytes = _make_placeholder_design()
+def _upload_and_create(title: str, description: str, tagline: str) -> str:
+    image_bytes = _make_design_image(tagline)
     b64 = base64.b64encode(image_bytes).decode("utf-8")
 
     upload_resp = requests.post(
-        f"{API_BASE}/uploads/images.json",
-        headers=_headers(),
-        json={"file_name": "sample_design.png", "contents": b64},
-        timeout=30,
+        f"{API_BASE}/uploads/images.json", headers=_headers(),
+        json={"file_name": "design.png", "contents": b64}, timeout=30,
     )
     if upload_resp.status_code != 200:
         return f"Image upload failed ({upload_resp.status_code}): {upload_resp.text[:300]}"
     image_id = upload_resp.json()["id"]
 
     product_body = {
-        "title": "Sample Test Tee — DO NOT PUBLISH",
-        "description": (
-            "Internal test product created by Mission Control to confirm the "
-            "Printify pipeline works end-to-end. Safe to delete."
-        ),
+        "title": title,
+        "description": description,
         "blueprint_id": TEE_BLUEPRINT_ID,
         "print_provider_id": TEE_PROVIDER_ID,
         "variants": [{"id": vid, "price": 2000, "is_enabled": True} for vid in TEST_VARIANT_IDS],
-        "print_areas": [
-            {
-                "variant_ids": TEST_VARIANT_IDS,
-                "placeholders": [
-                    {"position": "front", "images": [{"id": image_id, "x": 0.5, "y": 0.5, "scale": 1, "angle": 0}]}
-                ],
-            }
-        ],
+        "print_areas": [{
+            "variant_ids": TEST_VARIANT_IDS,
+            "placeholders": [{"position": "front", "images": [{"id": image_id, "x": 0.5, "y": 0.5, "scale": 1, "angle": 0}]}],
+        }],
     }
-
-    product_resp = requests.post(
-        f"{API_BASE}/shops/{SHOP_ID}/products.json",
-        headers=_headers(),
-        json=product_body,
-        timeout=30,
-    )
+    product_resp = requests.post(f"{API_BASE}/shops/{SHOP_ID}/products.json", headers=_headers(),
+                                  json=product_body, timeout=30)
     if product_resp.status_code not in (200, 201):
         return f"Product creation failed ({product_resp.status_code}): {product_resp.text[:300]}"
 
     product = product_resp.json()
-    return (
-        f"Draft product created: '{product['title']}' (product_id: {product['id']}).\n"
-        f"This is a DRAFT only — nothing published, nothing for sale.\n"
-        f"Go check it in your Printify dashboard under Products."
+    return (f"Draft created: '{product['title']}' (product_id: {product['id']}).\n"
+            f"Still just a draft — nothing published, nothing for sale until you publish it yourself in Printify.")
+
+
+def create_test_product() -> str:
+    return _upload_and_create(
+        "Sample Test Tee — DO NOT PUBLISH",
+        "Internal test product created by Mission Control. Safe to delete.",
+        "SAMPLE\nDESIGN",
     )
+
+
+def create_product_from_proposal(proposal: dict) -> str:
+    return _upload_and_create(proposal["title"], proposal["description"], proposal["tagline"])
