@@ -71,6 +71,11 @@
       <p style="white-space: pre-line;">{{ a.last_output or "—" }}</p>
     </div>
 
+    {% if a.id == "store_designer" and pending_product %}
+    <img src="{{ url_for('pending_product_image') }}?t={{ range(1,99999)|random }}"
+         alt="Design preview" style="width:100%; border-radius:6px; border:1px solid var(--line); background:#fff;">
+    {% endif %}
+
     <form class="desk-notes" action="{{ url_for('note', agent_id=a.id) }}" method="post">
       <textarea name="notes" rows="2">{{ a.notes }}</textarea>
       <button type="submit">Save note</button>
@@ -108,7 +113,7 @@
     </form>
     {% endif %}
 
-    {% if a.status == "awaiting_review" and a.id not in ["store_designer"] %}
+    {% if a.status == "awaiting_review" and a.id != "store_designer" %}
     <form action="{{ url_for('approve', agent_id=a.id) }}" method="post">
       <button class="approve-btn" type="submit">Approve to publish</button>
     </form>
