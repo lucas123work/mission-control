@@ -2,13 +2,14 @@
 printify_desk.py
 
 Handles all communication with the Printify API: confirming the connection
-works, and looking up product blueprints to use later.
+works, and looking up product blueprints/providers to use later.
 """
 
 import os
 import requests
 
 API_BASE = "https://api.printify.com/v1"
+TEE_BLUEPRINT_ID = 6  # Unisex Heavy Cotton Tee — confirmed working
 
 
 def _headers():
@@ -46,4 +47,22 @@ def find_tee_blueprint() -> str:
     lines = ["Candidate blueprints:"]
     for b in matches[:3]:
         lines.append(f"  - {b['title']} (blueprint_id: {b['id']})")
+    return "\n".join(lines)
+
+
+def find_print_provider() -> str:
+    resp = requests.get(
+        f"{API_BASE}/catalog/blueprints/{TEE_BLUEPRINT_ID}/print_providers.json",
+        headers=_headers(), timeout=20,
+    )
+    if resp.status_code != 200:
+        return f"Provider lookup failed ({resp.status_code}): {resp.text[:200]}"
+
+    providers = resp.json()
+    if not providers:
+        return "No print providers found for this blueprint."
+
+    lines = ["Available print providers:"]
+    for p in providers[:5]:
+        lines.append(f"  - {p['title']} (id: {p['id']})")
     return "\n".join(lines)
