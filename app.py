@@ -111,5 +111,16 @@ def run_printify_variants():
     return redirect(url_for("index"))
 
 
+@app.route("/run/printify_create_test", methods=["POST"])
+def run_printify_create_test():
+    import printify_desk
+    try:
+        result = printify_desk.create_test_product()
+        store.set_output("printify_desk", result, status="awaiting_review")
+    except Exception as e:
+        store.set_output("printify_desk", f"Error: {e}", status="blocked")
+    return redirect(url_for("index"))
+
+
 if __name__ == "__main__":
     app.run(debug=True, port=5050)
