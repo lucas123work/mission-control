@@ -146,3 +146,19 @@ def create_test_product() -> str:
 
 def create_product_from_proposal(proposal: dict) -> str:
     return _upload_and_create(proposal["title"], proposal["description"], proposal["tagline"])
+def find_color_variants(color_name: str) -> str:
+    resp = requests.get(
+        f"{API_BASE}/catalog/blueprints/{TEE_BLUEPRINT_ID}/print_providers/{TEE_PROVIDER_ID}/variants.json",
+        headers=_headers(), timeout=20,
+    )
+    if resp.status_code != 200:
+        return f"Variant lookup failed ({resp.status_code}): {resp.text[:200]}"
+    data = resp.json()
+    variants = data.get("variants", [])
+    matches = [v for v in variants if color_name.lower() in v["title"].lower()]
+    if not matches:
+        return f"No variants found matching '{color_name}'."
+    lines = [f"{color_name} variants ({len(matches)}):"]
+    for v in matches:
+        lines.append(f"  - {v['title']} (variant_id: {v['id']})")
+    return "\n".join(lines)
