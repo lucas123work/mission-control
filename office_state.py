@@ -1,4 +1,13 @@
+"""
+office_state.py
 
+Every desk/agent script reads and writes through this file. Data lives in
+Supabase so it survives restarts and redeploys.
+
+Needs two environment variables set wherever this runs:
+    SUPABASE_URL
+    SUPABASE_KEY   (the service_role/secret key)
+"""
 
 import os
 import threading
@@ -19,74 +28,32 @@ _lock = threading.Lock()
 ROW_ID = 1
 
 VALID_STATUSES = {
-    "not_started",
-    "built_not_wired",
-    "awaiting_setup",
-    "awaiting_orders",
-    "running",
-    "awaiting_review",
-    "approved",
-    "blocked",
+    "not_started", "built_not_wired", "awaiting_setup", "awaiting_orders",
+    "running", "awaiting_review", "approved", "blocked",
 }
 
-# Used only the very first time the app runs, to seed an empty database.
 DEFAULT_STATE = {
     "finance": {"total_earned": 0.0, "total_spent": 0.0, "currency": "GBP"},
+    "pending_product": None,
     "agents": {
-        "idea_room": {
-            "label": "Idea Room", "desk": "YouTube",
-            "job": "Generates original video concepts",
-            "status": "built_not_wired", "last_output": None,
-            "notes": "Code exists (idea_room.py). Not yet reporting into this hub.",
-        },
-        "writers_room": {
-            "label": "Writers' Room", "desk": "YouTube",
-            "job": "Turns an idea into a full beat-by-beat script",
-            "status": "built_not_wired", "last_output": None,
-            "notes": "Code exists (writers_room.py). Not yet reporting into this hub.",
-        },
-        "voice_booth": {
-            "label": "Voice Booth", "desk": "YouTube",
-            "job": "Text-to-speech narration",
-            "status": "not_started", "last_output": None,
-            "notes": "Not built yet. Free TTS quality was flagged as a retention risk.",
-        },
-        "art_department": {
-            "label": "Art Department", "desk": "YouTube",
-            "job": "Illustrated panels for pan/zoom animation",
-            "status": "not_started", "last_output": None,
-            "notes": "Not built yet.",
-        },
-        "ebay_flip_finder": {
-            "label": "eBay Flip Finder", "desk": "Reselling",
-            "job": "Flags active-listing price gaps (Browse API, free tier)",
-            "status": "not_started", "last_output": None,
-            "notes": "v1 planned. Sold-price data needs a paid eBay Store + Terapeak later.",
-        },
-        "store_designer": {
-            "label": "Store Designer", "desk": "Merch",
-            "job": "AI-generates product names, descriptions and design concepts",
-            "status": "not_started", "last_output": None,
-            "notes": "Not built yet. Feeds straight into Printify Desk once running.",
-        },
-        "printify_desk": {
-            "label": "Printify Desk", "desk": "Merch",
-            "job": "Uploads designs as products via the Printify API",
-            "status": "not_started", "last_output": None,
-            "notes": "Not built yet. Printify itself is free; per-item cost applies on sale.",
-        },
-        "storefront": {
-            "label": "Storefront", "desk": "Merch",
-            "job": "Printify's free built-in Pop-Up Store (no Shopify needed)",
-            "status": "not_started", "last_output": None,
-            "notes": "Free. Revisit Shopify only once real sales justify ~£20+/mo.",
-        },
-        "tiktok_ads": {
-            "label": "TikTok Ads", "desk": "Marketing",
-            "job": "Posts/ad creative for the storefront",
-            "status": "not_started", "last_output": None,
-            "notes": "Blocked on TikTok developer app approval + business verification, not just code.",
-        },
+        "idea_room": {"label": "Idea Room", "desk": "YouTube", "job": "Generates original video concepts",
+                       "status": "built_not_wired", "last_output": None, "notes": "Code exists (idea_room.py). Not yet reporting into this hub."},
+        "writers_room": {"label": "Writers' Room", "desk": "YouTube", "job": "Turns an idea into a full beat-by-beat script",
+                          "status": "built_not_wired", "last_output": None, "notes": "Code exists (writers_room.py). Not yet reporting into this hub."},
+        "voice_booth": {"label": "Voice Booth", "desk": "YouTube", "job": "Text-to-speech narration",
+                         "status": "not_started", "last_output": None, "notes": "Not built yet. Free TTS quality was flagged as a retention risk."},
+        "art_department": {"label": "Art Department", "desk": "YouTube", "job": "Illustrated panels for pan/zoom animation",
+                            "status": "not_started", "last_output": None, "notes": "Not built yet."},
+        "ebay_flip_finder": {"label": "eBay Flip Finder", "desk": "Reselling", "job": "Flags active-listing price gaps (Browse API, free tier)",
+                              "status": "not_started", "last_output": None, "notes": "v1 planned. Sold-price data needs a paid eBay Store + Terapeak later."},
+        "store_designer": {"label": "Store Designer", "desk": "Merch", "job": "Generates product names, taglines and design concepts",
+                            "status": "not_started", "last_output": None, "notes": "Free template-based generator. No AI API cost."},
+        "printify_desk": {"label": "Printify Desk", "desk": "Merch", "job": "Uploads designs as products via the Printify API",
+                           "status": "awaiting_orders", "last_output": None, "notes": "Confirmed working: blueprint, provider, variants, test product created."},
+        "storefront": {"label": "Storefront", "desk": "Merch", "job": "Printify's free built-in Pop-Up Store (no Shopify needed)",
+                        "status": "not_started", "last_output": None, "notes": "Free. Revisit Shopify only once real sales justify ~£20+/mo."},
+        "tiktok_ads": {"label": "TikTok Ads", "desk": "Marketing", "job": "Posts/ad creative for the storefront",
+                        "status": "not_started", "last_output": None, "notes": "Blocked on TikTok developer app approval + business verification, not just code."},
     },
     "log": [{"ts": "hub created", "text": "Mission Control initialised. All desks start honest: nothing runs unattended yet."}],
 }
@@ -100,7 +67,6 @@ def _load() -> dict:
     res = _client.table("hub_state").select("data").eq("id", ROW_ID).execute()
     if res.data:
         return res.data[0]["data"]
-    # First ever run: seed the database with the default board.
     _client.table("hub_state").insert({"id": ROW_ID, "data": DEFAULT_STATE}).execute()
     return DEFAULT_STATE
 
@@ -177,4 +143,23 @@ def update_finance(earned_delta: float = 0.0, spent_delta: float = 0.0, note: st
             text += f" — {note}"
         state["log"].append({"ts": _now(), "text": text})
         state["log"] = state["log"][-50:]
+        _save(state)
+
+
+def set_pending_product(proposal: dict) -> None:
+    with _lock:
+        state = _load()
+        state["pending_product"] = proposal
+        _save(state)
+
+
+def get_pending_product():
+    state = get_state()
+    return state.get("pending_product")
+
+
+def clear_pending_product() -> None:
+    with _lock:
+        state = _load()
+        state["pending_product"] = None
         _save(state)
